@@ -2,6 +2,9 @@
 name = "picturium-libvips"
 version = "0.1.0"
 edition = "2021"
+exclude = [
+    "data/*",
+]
 
 [build-dependencies]
 bindgen = "0.71.1"
