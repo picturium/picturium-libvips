@@ -1,5 +1,7 @@
 [package]
 name = "picturium-libvips"
+description = "Libvips bindings for picturium media server"
+license = "GPL-3.0-only"
 version = "8.15.1"
 edition = "2021"
 exclude = [
