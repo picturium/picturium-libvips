@@ -1,5 +1,5 @@
 use std::os::raw::{c_int, c_void};
-use crate::bindings::{vips_image_new_from_file, VipsImage as CVipsImage, g_object_unref, vips_image_new_from_image, vips_image_get_width, vips_image_get_height, vips_image_set_kill, vips_image_hasalpha};
+use crate::bindings::{vips_image_new_from_file, VipsImage as CVipsImage, g_object_unref, vips_image_new_from_image, vips_image_get_width, vips_image_get_height, vips_image_set_kill, vips_image_hasalpha, vips_image_get_n_pages};
 use crate::options::{FromFileOptions};
 use crate::utils::c_string;
 use crate::result::{Error, Result};
@@ -64,6 +64,10 @@ impl VipsImage {
 
     pub fn get_bands(&self) -> i32 {
         (unsafe { *self.0 }).Bands
+    }
+
+    pub fn get_page_count(&self) -> i32 {
+        unsafe { vips_image_get_n_pages(self.0) }
     }
 
     pub fn is_transparent(&self) -> bool {
@@ -200,5 +204,20 @@ mod tests {
 
         let image = image.unwrap();
         assert_eq!(image.is_transparent(), true);
+    }
+
+    #[test]
+    fn it_returns_number_of_pages() {
+        let vips = Vips::new("picturium").unwrap();
+        vips.check_leaks();
+
+        let document = VipsImage::new_from_file("data/document.pdf", None);
+
+        if let Err(e) = document {
+            panic!("PDF document: {e}");
+        }
+
+        let document = document.unwrap();
+        assert_eq!(document.get_page_count(), 2);
     }
 }

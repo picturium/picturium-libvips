@@ -9,15 +9,15 @@ use crate::utils::c_string;
 use crate::vips::Vips;
 
 pub trait VipsOperations {
-    fn icc_transform(&self, output_profile: &str, options: Option<IccTransformOptions>) -> Result<Self> where Self: Sized;
-    fn autorotate(&self) -> Result<Self> where Self: Sized;
-    fn rotate(&self, angle: VipsAngle) -> Result<Self> where Self: Sized;
-    fn background_color(&self, color: &[f64]) -> Result<Self> where Self: Sized;
-    fn composite2(&self, overlay: &VipsImage, mode: VipsBlendMode, options: Option<Composite2Options>) -> Result<Self> where Self: Sized;
+    fn icc_transform(self, output_profile: &str, options: Option<IccTransformOptions>) -> Result<Self> where Self: Sized;
+    fn autorotate(self) -> Result<Self> where Self: Sized;
+    fn rotate(self, angle: VipsAngle) -> Result<Self> where Self: Sized;
+    fn background_color(self, color: &[f64]) -> Result<Self> where Self: Sized;
+    fn composite2(self, overlay: &VipsImage, mode: VipsBlendMode, options: Option<Composite2Options>) -> Result<Self> where Self: Sized;
 }
 
 impl VipsOperations for VipsImage {
-    fn icc_transform(&self, output_profile: &str, options: Option<IccTransformOptions>) -> Result<Self> {
+    fn icc_transform(self, output_profile: &str, options: Option<IccTransformOptions>) -> Result<Self> {
         let mut output_image: *mut crate::bindings::VipsImage = null_mut();
 
         let result = match options {
@@ -40,42 +40,51 @@ impl VipsOperations for VipsImage {
             return Err(Error::ImageOperationError(Vips::get_error()));
         }
 
-        Ok(VipsImage(output_image, None))
+        let mut output_image = VipsImage(output_image, None);
+        output_image.keepalive(self);
+
+        Ok(output_image)
     }
 
-    fn autorotate(&self) -> Result<Self> {
+    fn autorotate(self) -> Result<Self> {
         let mut output_image: *mut crate::bindings::VipsImage = null_mut();
 
         if unsafe { vips_autorot(self.0, &mut output_image, NULL) != 0 } || output_image.is_null() {
             return Err(Error::ImageOperationError(Vips::get_error()));
         }
 
-        Ok(VipsImage(output_image, None))
+        let mut output_image = VipsImage(output_image, None);
+        output_image.keepalive(self);
+
+        Ok(output_image)
     }
 
-    fn rotate(&self, angle: VipsAngle) -> Result<Self> {
+    fn rotate(self, angle: VipsAngle) -> Result<Self> {
         let mut output_image: *mut crate::bindings::VipsImage = null_mut();
 
         if unsafe { vips_rot(self.0, &mut output_image, angle.into(), NULL) != 0 } || output_image.is_null() {
             return Err(Error::ImageOperationError(Vips::get_error()));
         }
 
-        Ok(VipsImage(output_image, None))
+        let mut output_image = VipsImage(output_image, None);
+        output_image.keepalive(self);
+
+        Ok(output_image)
     }
 
-    fn background_color(&self, bands: &[f64]) -> Result<Self> {
-        let background_image = VipsImage::new_from_image(self, bands)?;
+    fn background_color(self, bands: &[f64]) -> Result<Self> {
+        let background_image = VipsImage::new_from_image(&self, bands)?;
 
-        match background_image.composite2(self, VipsBlendMode::Over, None) {
+        match background_image.composite2(&self, VipsBlendMode::Over, None) {
             Ok(mut image) => {
-                image.keepalive(background_image);
+                image.keepalive(self);
                 Ok(image)
             },
             Err(e) => Err(e),
         }
     }
 
-    fn composite2(&self, overlay: &VipsImage, mode: VipsBlendMode, options: Option<Composite2Options>) -> Result<Self> {
+    fn composite2(self, overlay: &VipsImage, mode: VipsBlendMode, options: Option<Composite2Options>) -> Result<Self> {
         let mut output_image: *mut crate::bindings::VipsImage = null_mut();
 
         let result = match options {
@@ -96,7 +105,10 @@ impl VipsOperations for VipsImage {
             return Err(Error::ImageOperationError(Vips::get_error()));
         }
 
-        Ok(VipsImage(output_image, None))
+        let mut output_image = VipsImage(output_image, None);
+        output_image.keepalive(self);
+
+        Ok(output_image)
     }
 }
 
@@ -139,13 +151,13 @@ mod tests {
         }
 
         let image = image.unwrap();
-        let rotated_image = image.autorotate();
+        let image = image.autorotate();
 
-        if let Err(e) = rotated_image {
+        if let Err(e) = image {
             panic!("Rotated image: {e}");
         }
 
-        rotated_image.unwrap().save_jpeg("data/output/autorotated.jpg", None).unwrap();
+        image.unwrap().save_jpeg("data/output/autorotated.jpg", None).unwrap();
     }
 
     #[test]
