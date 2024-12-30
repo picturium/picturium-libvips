@@ -1,9 +1,10 @@
-use std::os::raw::{c_int, c_void};
-use crate::bindings::{vips_image_new_from_file, VipsImage as CVipsImage, g_object_unref, vips_image_new_from_image, vips_image_get_width, vips_image_get_height, vips_image_set_kill, vips_image_hasalpha, vips_image_get_n_pages};
-use crate::options::{FromFileOptions};
-use crate::utils::c_string;
+use crate::bindings::{g_object_unref, vips_image_get_blob, vips_image_get_height, vips_image_get_n_pages, vips_image_get_typeof, vips_image_get_width, vips_image_hasalpha, vips_image_new_from_file, vips_image_new_from_image, vips_image_set_kill, VipsImage as CVipsImage};
+use crate::options::FromFileOptions;
 use crate::result::{Error, Result};
+use crate::utils::c_string;
 use crate::vips::Vips;
+use std::os::raw::{c_int, c_void};
+use std::ptr::null_mut;
 
 #[derive(Debug, Clone)]
 pub struct VipsImage(pub *mut CVipsImage, pub(crate) Option<Vec<VipsImage>>);
@@ -70,6 +71,24 @@ impl VipsImage {
         unsafe { vips_image_get_n_pages(self.0) }
     }
 
+    pub fn has_property(&self, property: &str) -> Result<bool> {
+        Ok(unsafe { vips_image_get_typeof(self.0, c_string(property)?.as_ptr()) > 0 })
+    }
+
+    pub fn get_blob(&self, property: &str) -> Result<Vec<u8>> {
+        let mut output: *const c_void = null_mut();
+        let mut length = 0;
+
+        let result = unsafe { vips_image_get_blob(self.0, c_string(property)?.as_ptr(), &mut output, &mut length) };
+
+        if result != 0 {
+            return Err(Error::ImageMetadataError(Vips::get_error()));
+        }
+
+        let blob_data = unsafe { std::slice::from_raw_parts(output as *const u8, length).to_vec() };
+        Ok(blob_data)
+    }
+
     pub fn is_transparent(&self) -> bool {
         unsafe { vips_image_hasalpha(self.0) == 1 }
     }
@@ -103,9 +122,9 @@ impl Drop for VipsImage {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::enums::VipsAccess;
     use crate::vips::Vips;
-    use super::*;
 
     #[test]
     fn it_creates_a_new_image_from_a_file() {

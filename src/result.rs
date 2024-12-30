@@ -8,6 +8,7 @@ pub enum Error {
     ImageLoadError(String),
     ImageOperationError(String),
     ImageSaveError(String),
+    ImageMetadataError(String),
     UnknownError(&'static str),
 }
 
@@ -18,6 +19,7 @@ impl Display for Error {
             Error::ImageLoadError(s) => write!(f, "Failed to load image: {}", s),
             Error::ImageOperationError(s) => write!(f, "Failed to process image: {}", s),
             Error::ImageSaveError(s) => write!(f, "Failed to save image: {}", s),
+            Error::ImageMetadataError(s) => write!(f, "Failed to retrieve image metadata: {}", s),
             Error::UnknownError(s) => write!(f, "Unknown error: {}", s),
         }
     }
