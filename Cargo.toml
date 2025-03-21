@@ -2,11 +2,9 @@
 name = "picturium-libvips"
 description = "Libvips bindings for picturium media server"
 license = "GPL-3.0-only"
-version = "0.1.1"
-edition = "2021"
-exclude = [
-    "data/*",
-]
+version = "0.1.2"
+edition = "2024"
+exclude = ["data/*"]
 
 [build-dependencies]
 bindgen = "0.71.1"
