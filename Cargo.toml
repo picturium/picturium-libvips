@@ -2,7 +2,7 @@
 name = "picturium-libvips"
 description = "Libvips bindings for picturium media server"
 license = "GPL-3.0-only"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 exclude = ["data/*"]
 

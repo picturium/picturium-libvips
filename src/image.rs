@@ -1,4 +1,9 @@
-use crate::bindings::{g_object_unref, vips_image_get_blob, vips_image_get_height, vips_image_get_n_pages, vips_image_get_typeof, vips_image_get_width, vips_image_hasalpha, vips_image_new_from_file, vips_image_new_from_image, vips_image_set_kill, VipsImage as CVipsImage};
+use crate::FromSvgOptions;
+use crate::bindings::{
+    VipsImage as CVipsImage, g_object_unref, vips_image_get_blob, vips_image_get_height,
+    vips_image_get_n_pages, vips_image_get_typeof, vips_image_get_width, vips_image_hasalpha,
+    vips_image_new_from_file, vips_image_new_from_image, vips_image_set_kill, vips_svgload,
+};
 use crate::options::FromFileOptions;
 use crate::result::{Error, Result};
 use crate::utils::c_string;
@@ -15,19 +20,21 @@ impl VipsImage {
     pub fn new_from_file(filename: &str, options: Option<FromFileOptions>) -> Result<Self> {
         let filename = match c_string(filename) {
             Ok(filename) => filename,
-            Err(e) => return Err(e)
+            Err(e) => return Err(e),
         };
 
         let image = match options {
             Some(options) => unsafe {
                 vips_image_new_from_file(
                     filename.as_ptr(),
-                    c_string("memory")?.as_ptr(), options.memory as c_int,
-                    c_string("access")?.as_ptr(), options.access,
-                    NULL
+                    c_string("memory")?.as_ptr(),
+                    options.memory as c_int,
+                    c_string("access")?.as_ptr(),
+                    options.access,
+                    NULL,
                 )
             },
-            None => unsafe { vips_image_new_from_file(filename.as_ptr(), NULL) }
+            None => unsafe { vips_image_new_from_file(filename.as_ptr(), NULL) },
         };
 
         if image.is_null() {
@@ -37,8 +44,51 @@ impl VipsImage {
         Ok(VipsImage(image, None))
     }
 
+    pub fn new_from_svg(filename: &str, options: Option<FromSvgOptions>) -> Result<Self> {
+        let filename = match c_string(filename) {
+            Ok(filename) => filename,
+            Err(e) => return Err(e),
+        };
+
+        let mut output_image: *mut crate::bindings::VipsImage = null_mut();
+
+        let result = match options {
+            Some(options) => unsafe {
+                vips_svgload(
+                    filename.as_ptr(),
+                    &mut output_image,
+                    c_string("dpi")?.as_ptr(),
+                    options.dpi,
+                    c_string("scale")?.as_ptr(),
+                    options.scale,
+                    c_string("unlimited")?.as_ptr(),
+                    options.unlimited as c_int,
+                    c_string("flags")?.as_ptr(),
+                    options.flags,
+                    c_string("memory")?.as_ptr(),
+                    options.memory as c_int,
+                    c_string("access")?.as_ptr(),
+                    options.access,
+                    c_string("fail_on")?.as_ptr(),
+                    options.fail_on,
+                    c_string("revalidate")?.as_ptr(),
+                    options.revalidate as c_int,
+                    NULL,
+                )
+            },
+            None => unsafe { vips_svgload(filename.as_ptr(), &mut output_image, NULL) },
+        };
+
+        if result != 0 || output_image.is_null() {
+            return Err(Error::ImageLoadError(Vips::get_error()));
+        }
+
+        Ok(VipsImage(output_image, None))
+    }
+
     pub fn new_from_image(image: &VipsImage, bands: &[f64]) -> Result<Self> {
-        let image = unsafe { vips_image_new_from_image(image.0, bands.as_ptr(), bands.len() as c_int) };
+        let image =
+            unsafe { vips_image_new_from_image(image.0, bands.as_ptr(), bands.len() as c_int) };
 
         if image.is_null() {
             return Err(Error::ImageLoadError(Vips::get_error()));
@@ -79,7 +129,14 @@ impl VipsImage {
         let mut output: *const c_void = null_mut();
         let mut length = 0;
 
-        let result = unsafe { vips_image_get_blob(self.0, c_string(property)?.as_ptr(), &mut output, &mut length) };
+        let result = unsafe {
+            vips_image_get_blob(
+                self.0,
+                c_string(property)?.as_ptr(),
+                &mut output,
+                &mut length,
+            )
+        };
 
         if result != 0 {
             return Err(Error::ImageMetadataError(Vips::get_error()));
@@ -101,15 +158,17 @@ impl VipsImage {
         if let None = self.1 {
             self.1 = Some(Vec::new());
         }
-        
+
         self.1.as_mut().unwrap().push(image);
     }
-    
+
     pub(crate) fn cleanup(&self) {
         self.kill();
 
         if !self.0.is_null() {
-            unsafe { g_object_unref(self.0 as *mut c_void); }
+            unsafe {
+                g_object_unref(self.0 as *mut c_void);
+            }
         }
     }
 }
@@ -131,14 +190,43 @@ mod tests {
         let vips = Vips::new("picturium").unwrap();
         vips.check_leaks();
 
-        let image = VipsImage::new_from_file("data/example.jpg", FromFileOptions {
-            access: VipsAccess::Last,
-            memory: true,
-        }.into());
+        let image = VipsImage::new_from_file(
+            "data/example.jpg",
+            FromFileOptions {
+                access: VipsAccess::Last,
+                memory: true,
+            }
+            .into(),
+        );
 
         if let Err(e) = image {
             panic!("{e}");
         }
+    }
+
+    #[test]
+    fn it_creates_a_new_image_from_svg() {
+        let vips = Vips::new("picturium").unwrap();
+        vips.check_leaks();
+
+        let image = VipsImage::new_from_svg(
+            "data/example.svg",
+            FromSvgOptions {
+                dpi: 300.0,
+                revalidate: true,
+                ..FromSvgOptions::default()
+            }
+            .into(),
+        );
+
+        if let Err(e) = image {
+            panic!("{e}");
+        }
+
+        let image = image.unwrap();
+
+        assert_eq!(image.get_width(), 3142);
+        assert_eq!(image.get_height(), 1449);
     }
 
     #[test]

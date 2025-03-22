@@ -1,4 +1,5 @@
-use crate::enums::{VipsAccess, VipsIntent, VipsInterpretation, VipsPCS};
+use crate::enums::{VipsAccess, VipsIntent, VipsInterpretation, VipsPCS, VipsForeignFlags};
+use crate::VipsFailOn;
 
 #[derive(Debug)]
 pub struct FromFileOptions {
@@ -11,6 +12,33 @@ impl Default for FromFileOptions {
         Self {
             access: VipsAccess::default(),
             memory: true
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct FromSvgOptions {
+    pub dpi: f64,
+    pub scale: f64,
+    pub unlimited: bool,
+    pub flags: VipsForeignFlags,
+    pub memory: bool,
+    pub access: VipsAccess,
+    pub fail_on: VipsFailOn,
+    pub revalidate: bool
+}
+
+impl Default for FromSvgOptions {
+    fn default() -> Self {
+        Self {
+            dpi: 72.0,
+            scale: 1.0,
+            unlimited: false,
+            flags: VipsForeignFlags::default(),
+            memory: false,
+            access: VipsAccess::default(),
+            fail_on: VipsFailOn::default(),
+            revalidate: false,
         }
     }
 }

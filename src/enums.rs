@@ -428,3 +428,27 @@ impl Into<crate::bindings::VipsForeignHeifEncoder> for VipsHeifEncoder {
         }
     }
 }
+
+// ---
+
+#[derive(Debug, Default)]
+pub enum VipsForeignFlags {
+    #[default]
+    None,
+    Partial,
+    BigEndian,
+    Sequential,
+    All
+}
+
+impl Into<crate::bindings::VipsForeignFlags> for VipsForeignFlags {
+    fn into(self) -> crate::bindings::VipsForeignFlags {
+        match self {
+            VipsForeignFlags::None => crate::bindings::VipsForeignFlags_VIPS_FOREIGN_NONE,
+            VipsForeignFlags::Partial => crate::bindings::VipsForeignFlags_VIPS_FOREIGN_PARTIAL,
+            VipsForeignFlags::BigEndian => crate::bindings::VipsForeignFlags_VIPS_FOREIGN_BIGENDIAN,
+            VipsForeignFlags::Sequential => crate::bindings::VipsForeignFlags_VIPS_FOREIGN_SEQUENTIAL,
+            VipsForeignFlags::All => crate::bindings::VipsForeignFlags_VIPS_FOREIGN_ALL,
+        }
+    }
+}
